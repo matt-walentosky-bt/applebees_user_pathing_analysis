@@ -28,7 +28,7 @@ WITH user_filter AS (
  FROM `applebees-olo.analytics_245284004.events_*`
     WHERE 
      _TABLE_SUFFIX BETWEEN FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY)) AND FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))
-      AND device.category = 'desktop' --'mobile'
+      --AND device.category = 'desktop' --'mobile'
 
 
   GROUP BY 1, 2
