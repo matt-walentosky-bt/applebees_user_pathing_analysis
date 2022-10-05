@@ -1,52 +1,52 @@
-item_category,sessions_session_and_user_id,
-Appetizers,43671,Appetizers
-Pasta,22127,Menu
-Chicken,22111,Menu
-Steaks & Ribs,20843,Menu
-Sandwiches & More,18805,Menu
-Handcrafted Burgers,18726,Menu
-Salads,13948,Menu
-Sauces & Sides,13481,Sauces & Sides
-Kids Menu,12833,Kids Menu
-Seafood,12480,Menu
-Desserts,10209,Dessert
-2 for $25,9517,Offers
-Non-Alcoholic Beverages,8692,Drinks
-Irresist-A-Bowls®,7066,Menu
-Irresist-A-Bowls,6959,Menu
-2 for $24,6197,Offers
-Cheetos® Exclusive  Flavors,4987,CHEETOS  EXCLUSIVE FLAVORS
-Extras,4617,Menu Extras
-Exclusive Cheetos® Flavors,4006,CHEETOS  EXCLUSIVE FLAVORS
-Catering,2707,
-Signature Cocktails,2363,Drinks
-Signature Cocktails To Go,2334,Drinks
-Family Bundle Meals,2034,Family Value Bundles
-2 for $22,1434,Offers
-2 for $22/-/27,1020,Offers
-Beer and Wine,783,Menu
-2 for $25 (Price may vary by location or selection.),725,Offers
-2 for $23,700,Offers
-Beer and Wine To Go,574,Drinks
-2 for $2X,572,Offers
-"$9.99 Lunch Meal Deals, $1 Drinks",546,Menu
-Mucho Cocktails,451,Menu
-2 for $24 - 29,263,Offers
-$13.99 Burger Bundle,179,Menu
-Lunch Specials (Mon-Fri Until 4pm),89,Other
-Kid's Menu,82,Other
-Steaks,68,Other
-$14.99 Burger Bundle,64,Other
-$9.99 Burger Bundle,57,Other
-Ribs,54,Other
-2 for $26,14,Other
-Packaging,11,Other
-2 for $37,9,Other
-2 for $30,9,Other
-Beer & Wine To Go,4,Other
-2 for $28,3,Other
-Party Platters,2,Other
-Wings & Tenders,1,Other
-National Cheeseburger Day,1,Other
-Support Alex’s Lemonade Stand Foundation -- Crush Childhood Cancer,1,Other
-,0,Other
+item_category,sessions_session_and_user_id,,,
+Appetizers,43671,Appetizers,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Appetizers$') and event_name ='view_item_list' then 'Appetizers'"
+Pasta,22127,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Pasta$') and event_name ='view_item_list' then 'Menu'"
+Chicken,22111,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Chicken$') and event_name ='view_item_list' then 'Menu'"
+Steaks & Ribs,20843,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Steaks & Ribs$') and event_name ='view_item_list' then 'Menu'"
+Sandwiches & More,18805,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Sandwiches & More$') and event_name ='view_item_list' then 'Menu'"
+Handcrafted Burgers,18726,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Handcrafted Burgers$') and event_name ='view_item_list' then 'Menu'"
+Salads,13948,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Salads$') and event_name ='view_item_list' then 'Menu'"
+Sauces & Sides,13481,Sauces & Sides,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Sauces & Sides$') and event_name ='view_item_list' then 'Sauces & Sides'"
+Kids Menu,12833,Kids Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Kids Menu$') and event_name ='view_item_list' then 'Kids Menu'"
+Seafood,12480,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Seafood$') and event_name ='view_item_list' then 'Menu'"
+Desserts,10209,Dessert,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Desserts$') and event_name ='view_item_list' then 'Dessert'"
+2 for $25,9517,Offers,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $25$') and event_name ='view_item_list' then 'Offers'"
+Non-Alcoholic Beverages,8692,Drinks,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Non-Alcoholic Beverages$') and event_name ='view_item_list' then 'Drinks'"
+Irresist-A-Bowls®,7066,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Irresist-A-Bowls®$') and event_name ='view_item_list' then 'Menu'"
+Irresist-A-Bowls,6959,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Irresist-A-Bowls$') and event_name ='view_item_list' then 'Menu'"
+2 for $24,6197,Offers,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $24$') and event_name ='view_item_list' then 'Offers'"
+Cheetos® Exclusive  Flavors,4987,CHEETOS  EXCLUSIVE FLAVORS,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Cheetos® Exclusive  Flavors$') and event_name ='view_item_list' then 'CHEETOS  EXCLUSIVE FLAVORS'"
+Extras,4617,Menu Extras,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Extras$') and event_name ='view_item_list' then 'Menu Extras'"
+Exclusive Cheetos® Flavors,4006,CHEETOS  EXCLUSIVE FLAVORS,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Exclusive Cheetos® Flavors$') and event_name ='view_item_list' then 'CHEETOS  EXCLUSIVE FLAVORS'"
+Catering,2707,,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Catering$') and event_name ='view_item_list' then ''"
+Signature Cocktails,2363,Drinks,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Signature Cocktails$') and event_name ='view_item_list' then 'Drinks'"
+Signature Cocktails To Go,2334,Drinks,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Signature Cocktails To Go$') and event_name ='view_item_list' then 'Drinks'"
+Family Bundle Meals,2034,Family Value Bundles,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Family Bundle Meals$') and event_name ='view_item_list' then 'Family Value Bundles'"
+2 for $22,1434,Offers,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $22$') and event_name ='view_item_list' then 'Offers'"
+2 for $22/-/27,1020,Offers,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $22/-/27$') and event_name ='view_item_list' then 'Offers'"
+Beer and Wine,783,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Beer and Wine$') and event_name ='view_item_list' then 'Menu'"
+2 for $25 (Price may vary by location or selection.),725,Offers,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $25 (Price may vary by location or selection.)$') and event_name ='view_item_list' then 'Offers'"
+2 for $23,700,Offers,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $23$') and event_name ='view_item_list' then 'Offers'"
+Beer and Wine To Go,574,Drinks,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Beer and Wine To Go$') and event_name ='view_item_list' then 'Drinks'"
+2 for $2X,572,Offers,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $2X$') and event_name ='view_item_list' then 'Offers'"
+"$9.99 Lunch Meal Deals, $1 Drinks",546,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^$9.99 Lunch Meal Deals, $1 Drinks$') and event_name ='view_item_list' then 'Menu'"
+Mucho Cocktails,451,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Mucho Cocktails$') and event_name ='view_item_list' then 'Menu'"
+2 for $24 - 29,263,Offers,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $24 - 29$') and event_name ='view_item_list' then 'Offers'"
+$13.99 Burger Bundle,179,Menu,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^$13.99 Burger Bundle$') and event_name ='view_item_list' then 'Menu'"
+Lunch Specials (Mon-Fri Until 4pm),89,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Lunch Specials (Mon-Fri Until 4pm)$') and event_name ='view_item_list' then 'Other'"
+Kid's Menu,82,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Kid's Menu$') and event_name ='view_item_list' then 'Other'"
+Steaks,68,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Steaks$') and event_name ='view_item_list' then 'Other'"
+$14.99 Burger Bundle,64,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^$14.99 Burger Bundle$') and event_name ='view_item_list' then 'Other'"
+$9.99 Burger Bundle,57,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^$9.99 Burger Bundle$') and event_name ='view_item_list' then 'Other'"
+Ribs,54,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Ribs$') and event_name ='view_item_list' then 'Other'"
+2 for $26,14,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $26$') and event_name ='view_item_list' then 'Other'"
+Packaging,11,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Packaging$') and event_name ='view_item_list' then 'Other'"
+2 for $37,9,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $37$') and event_name ='view_item_list' then 'Other'"
+2 for $30,9,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $30$') and event_name ='view_item_list' then 'Other'"
+Beer & Wine To Go,4,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Beer & Wine To Go$') and event_name ='view_item_list' then 'Other'"
+2 for $28,3,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $28$') and event_name ='view_item_list' then 'Other'"
+Party Platters,2,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Party Platters$') and event_name ='view_item_list' then 'Other'"
+Wings & Tenders,1,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Wings & Tenders$') and event_name ='view_item_list' then 'Other'"
+National Cheeseburger Day,1,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^National Cheeseburger Day$') and event_name ='view_item_list' then 'Other'"
+Support Alex’s Lemonade Stand Foundation -- Crush Childhood Cancer,1,Other,,"WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Support Alex’s Lemonade Stand Foundation -- Crush Childhood Cancer$') and event_name ='view_item_list' then 'Other'"
+,0,Other,,

@@ -1,61 +1,7 @@
-with item_lkup_create as (
-select TRIM(item_name) as item_name ,product_grouping ,num_events, rank() OVER (partition by TRIM(item_name) ORDER BY num_events desc) as item_rank
-from (
-select item_name,product_grouping , count(event_name) as num_events
-from (
-select  item_name,event_name,
-CASE
-        WHEN REGEXP_CONTAINS(page_location, '/en/menu/appetizers') THEN 'PV: Appetizers'
-        WHEN REGEXP_CONTAINS(page_location, '/en/menu/chicken|/en/menu/pasta|/en/menu/salads|/en/menu/from-the-grill|/en/menu/burgers|/en/menu/sandwiches-and-more|menu/seafood|irresist-a-bowls|steaks-and-ribs|fire-grilled-and-chef-selections|sandwiches|all-you-can-eat|handcrafted-burgers|tex-mex-lime-grilled-shrimp-bowl') THEN 'PV: Entrees'
-          WHEN REGEXP_CONTAINS(page_location, r'/en/menu$')  THEN 'PV:  Menu'
-          WHEN REGEXP_CONTAINS(page_location, '/en/order/cart') THEN 'PV: Cart'
-          WHEN REGEXP_CONTAINS(page_location, '/en/accounts/cart-sign-in?returnUrl=/en/order/check-out') THEN 'PV: Sign In'
-          WHEN REGEXP_CONTAINS(page_location, 'en/menu/2-for') THEN 'Page View: Offers' 
-          WHEN REGEXP_CONTAINS(page_location, '/en/menu/non-alcoholic-beverages|menu/beer-and-wine') THEN 'PV: Drinks'
-          WHEN REGEXP_CONTAINS(page_location, '/en/menu/dessert') THEN 'PV: Dessert'
-          WHEN REGEXP_CONTAINS(page_location, 'en/menu/kids-menu') THEN 'PV: Kids Menu'
-          WHEN REGEXP_CONTAINS(page_location, 'en/order/check-out') THEN 'PV: Check Out'
-          WHEN REGEXP_CONTAINS(page_location, 'order/cross-sell-pre-checkout')  THEN 'PV: Cross Sell Page'
-          WHEN REGEXP_CONTAINS(page_location, 'menu/family-value-bundles')  THEN 'PV: Viewed Family Value Bundles'
-          WHEN REGEXP_CONTAINS(page_location, 'en/order/confirm-restaurant') THEN 'PV: Confirm Restaurant'
-          WHEN REGEXP_CONTAINS(page_location, 'en/menu/extras')  THEN 'PV: Menu Extras'
-          WHEN REGEXP_CONTAINS(page_location, 'accounts/sign-in') THEN 'PV: Account Sign In'
-          WHEN REGEXP_CONTAINS(page_location, 'en/order/ordermethod') THEN 'PV: Order Method'
-          WHEN REGEXP_CONTAINS(page_location, 'nutrition') THEN 'PV: Nutrition'
-          WHEN REGEXP_CONTAINS(page_location, 'accounts/my-account') THEN 'PV: My Account'
-          WHEN page_location = 'https://www.applebees.com/en' or page_location = 'https://restaurants.applebees.com/en-us/' THEN 'PV: Home Page'
-          WHEN REGEXP_CONTAINS(page_location, '/en/order/cross-sell-pre-checkout') AND event_name = 'page_view' THEN 'PV: Cross-Sell'
-          --WHEN event_name = 'add_to_cart' then 'A2C'
-          else null
-          end as product_grouping 
-from (
-select event_name,	items.item_category,items.item_name, 
-(SELECT value.string_value from UNNEST(event_params) where key = "firebase_screen_class") as screen_class,
-(SELECT value.string_value, from UNNEST(event_params) where key = "page_location") as page_location,
-event_timestamp,
---(SELECT value.string_value from UNNEST(event_params) where key = "page_title") as page_title
-FROM `applebees-olo.analytics_245284004.events_*`, UNNEST(event_params), UNNEST(items) AS items
-WHERE  _TABLE_SUFFIX BETWEEN FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 8 DAY)) AND FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))
-)
-where screen_class is null
-and event_name in ("add_to_cart")
-)
-where product_grouping is not null
-and item_name != ''
-group by item_name,product_grouping
-order by item_name, num_events desc
-)
-order by item_name, product_grouping
-)
-,item_lkup AS (
-  SELECT item_name, product_grouping
-  from item_lkup_create
-  where item_rank = 1
-)
-
-,user_filter AS (
+with user_filter AS (
   SELECT
-    user_pseudo_id, platform,
+    concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) as sessions_session_and_user_id
+    , platform,
     -- Get the earliest converter timestamp to retain the converter and exclude cost conversion hits
     MIN((SELECT IF(REGEXP_CONTAINS(value.string_value, 'CheckoutViewController|CheckoutActivity'), event_timestamp, NULL) 
     FROM UNNEST(event_params) WHERE event_name = 'ecommerce_purchase' and key ='firebase_screen_class')) AS conversion_time
@@ -68,29 +14,33 @@ order by item_name, product_grouping
 
 
   GROUP BY 1, 2
+
   HAVING conversion_time IS NOT NULL
+  ORDER by 1
 )
 
 ,event_facts as (
 SELECT *
 FROM (  
   (SELECT
-    user_pseudo_id
+    user_pseudo_id,
+    concat(user_pseudo_id,(select value.int_value from unnest(event_params) where key = 'ga_session_id')) as sessions_session_and_user_id
   --view products
-  ,(select value.string_value from UNNEST(event_params) WHERE event_name  = 'view_item_list' and key = 'firebase_screen_class') as app_view_itemlist
+  ,(select value.string_value from UNNEST(event_params) WHERE event_name  = 'view_item_list' and key = 'item_category') as app_view_itemlist
   --start a new order
   --, (select value.string_value from UNNEST(event_params) WHERE event_name = 'start_new_order' and key = 'firebase_screen_class') as order_time_controler
   --add_to_cart
-  , (select value.string_value from UNNEST(event_params) WHERE event_name = 'add_to_cart' and key = 'firebase_screen_class') as product_added_to_cart
-  --begin checkout
-  , (select value.string_value from UNNEST(event_params) WHERE event_name = 'begin_checkout' and key = 'firebase_screen_class') as begin_checkout
+  , (select IF(value.string_value is null, null,'added_item')  from UNNEST(event_params) WHERE event_name = 'add_to_cart' and key = 'item_name') as product_added_to_cart
+  --quick reorder
+  , (select IF(REGEXP_CONTAINS(value.string_value, r'QuickReorderViewController'),'Quick_Reorder',null) 
+  from UNNEST(event_params) WHERE event_name = 'screen_view' and key = 'firebase_screen_class') as  quick_reorder
   --view_favorite_store
-  , (select value.string_value from UNNEST(event_params) WHERE event_name = 'view_favorite_store' and key = 'firebase_screen_class') as view_favorite_store
+  , (select IF(REGEXP_CONTAINS(value.string_value, r'StoreTableViewController'),'viewed_favourite_store',null) from UNNEST(event_params) WHERE event_name = 'view_favorite_store' and key = 'firebase_screen_class') as view_favorite_store
   --view_nearby_store
   --  , (select value.string_value from UNNEST(event_params) WHERE event_name = 'view_nearby_store' and key = 'firebase_screen_class') as view_nearby_store
   --ecommerse purchase (conversion)
   , (SELECT MAX(value.string_value) FROM UNNEST(event_params) WHERE event_name = 'ecommerce_purchase' AND REGEXP_CONTAINS(value.string_value, r'CheckoutViewController|CheckoutActivity')) AS order_conversion,
-  (SELECT value.string_value from UNNEST(event_params) WHERE event_name = 'view_item' AND key ='item_name') as viewed_item_name,
+  --(SELECT value.string_value from UNNEST(event_params) WHERE event_name = 'view_item' AND key ='item_name') as viewed_item_name,
     event_name,
     event_timestamp,
     platform
@@ -107,47 +57,114 @@ FROM (
                       ,'add_to_cart'
                       ,'begin_checkout'
                       ,'view_favorite_store'
-                      ,'view_nearby_store') 
+                      ,'view_nearby_store'
+                      ,'screen_view') 
                     OR order_conversion IS NOT NULL
-  order by user_pseudo_id
+  order by user_pseudo_id,2
 )
-,event_facts_2 as (
-  select a.*
-,b.product_grouping
-from event_facts a
-left join item_lkup b
-on a.viewed_item_name=b.item_name
-order by viewed_item_name
-)
--- select count(distinct user_pseudo_id ) from event_facts_2 -- 74235
+--select * from event_facts
+-- select app_view_itemlist
+-- , product_grouping
+-- ,product_added_to_cart
+-- ,view_favorite_store
+-- ,order_conversion
+-- , count (distinct sessions_session_and_user_id )  from event_facts_2
+-- group by  app_view_itemlist
+-- , product_grouping
+-- ,product_added_to_cart
+-- ,view_favorite_store
+-- ,order_conversion
+-- order by 3 desc
+
+
+--select count(distinct sessions_session_and_user_id ) from event_facts_2 -- 97090
 --Final Query
 SELECT
    journey, conversion_flg,
-  COUNT(DISTINCT user_pseudo_id) as counts
+  COUNT(DISTINCT sessions_session_and_user_id) as counts
 FROM (
   SELECT 
-    user_pseudo_id, max(conversion_flg) as conversion_flg,
+    sessions_session_and_user_id, max(conversion_flg) as conversion_flg,
     -- Aggregate all steps into a single ordered string
     STRING_AGG(content_group, ' > ' ORDER BY event_timestamp ASC) as journey
   FROM (
     SELECT
       *,
       -- Find the prior content group so we can filter consequtive rows with the same content group
-      LAG(content_group) OVER (PARTITION BY user_pseudo_id ORDER BY event_timestamp) as content_group_lag,
+      LAG(content_group) OVER (PARTITION BY sessions_session_and_user_id ORDER BY event_timestamp) as content_group_lag,
     FROM (
       SELECT
         *,  
         CASE
-          when event_name ='view_item_list' then app_view_itemlist
-          when event_name ='view_item' then product_grouping
+          --when event_name ='view_item_list' then app_view_itemlist
+          -----------------------------------------------------------
+          --start item categories
+          -----------------------------------------------------------
+          WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Appetizers$') and event_name ='view_item_list' then 'Appetizers'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Pasta$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Chicken$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Steaks & Ribs$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Sandwiches & More$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Handcrafted Burgers$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Salads$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Sauces & Sides$') and event_name ='view_item_list' then 'Sauces & Sides'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Kids Menu$') and event_name ='view_item_list' then 'Kids Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Seafood$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Desserts$') and event_name ='view_item_list' then 'Dessert'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $25$') and event_name ='view_item_list' then 'Offers'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Non-Alcoholic Beverages$') and event_name ='view_item_list' then 'Drinks'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Irresist-A-Bowls¬Æ$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Irresist-A-Bowls$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $24$') and event_name ='view_item_list' then 'Offers'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Cheetos¬Æ Exclusive  Flavors$') and event_name ='view_item_list' then 'CHEETOS  EXCLUSIVE FLAVORS'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Extras$') and event_name ='view_item_list' then 'Menu Extras'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Exclusive Cheetos¬Æ Flavors$') and event_name ='view_item_list' then 'CHEETOS  EXCLUSIVE FLAVORS'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Catering$') and event_name ='view_item_list' then ''
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Signature Cocktails$') and event_name ='view_item_list' then 'Drinks'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Signature Cocktails To Go$') and event_name ='view_item_list' then 'Drinks'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Family Bundle Meals$') and event_name ='view_item_list' then 'Family Value Bundles'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $22$') and event_name ='view_item_list' then 'Offers'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $22/-/27$') and event_name ='view_item_list' then 'Offers'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Beer and Wine$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $25 (Price may vary by location or selection.)$') and event_name ='view_item_list' then 'Offers'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $23$') and event_name ='view_item_list' then 'Offers'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Beer and Wine To Go$') and event_name ='view_item_list' then 'Drinks'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $2X$') and event_name ='view_item_list' then 'Offers'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^$9.99 Lunch Meal Deals, $1 Drinks$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Mucho Cocktails$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $24 - 29$') and event_name ='view_item_list' then 'Offers'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^$13.99 Burger Bundle$') and event_name ='view_item_list' then 'Menu'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Lunch Specials (Mon-Fri Until 4pm)$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Kid\'s Menu$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Steaks$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^$14.99 Burger Bundle$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^$9.99 Burger Bundle$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Ribs$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $26$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Packaging$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $37$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $30$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Beer & Wine To Go$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^2 for $28$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Party Platters$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Wings & Tenders$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^National Cheeseburger Day$') and event_name ='view_item_list' then 'Other'
+WHEN REGEXP_CONTAINS(app_view_itemlist, r'^Support Alex‚Äôs Lemonade Stand Foundation -- Crush Childhood Cancer$') and event_name ='view_item_list' then 'Other'
+
+
+          -----------------------------------------------------------
+          --end
+          -----------------------------------------------------------
+
+         -- when event_name ='view_item' then product_grouping
          -- when event_name = 'start_new_order' then order_time_controler
           when event_name = 'add_to_cart' then product_added_to_cart
-          when event_name = 'begin_checkout' then begin_checkout
+         -- when event_name = 'begin_checkout' then begin_checkout
           when event_name = 'view_favorite_store' then view_favorite_store
-        --  when event_name = 'view_nearby_store' then view_nearby_store
+          when event_name = 'screen_view' then quick_reorder
           when event_name = 'ecommerce_purchase' then order_conversion
 
-          WHEN event_name = 'add_to_cart' then 'A2C'
+          --WHEN event_name = 'add_to_cart' then 'A2C'
           else NULL
           END AS content_group,
         case WHEN order_conversion IS NOT NULL THEN TRUE else FALSE end as conversion_flg
@@ -155,14 +172,14 @@ FROM (
         -- Join both base tables
         SELECT
           *
-        FROM event_facts_2
+        FROM event_facts
         LEFT JOIN (
           SELECT
-            user_pseudo_id,
+            sessions_session_and_user_id,
             conversion_time
           FROM user_filter
         )
-        USING(user_pseudo_id)
+        USING(sessions_session_and_user_id)
         -- Get all remaining non-converters and all hits from converters leading up to conversion
         WHERE conversion_time IS NULL OR conversion_time >= event_timestamp --and (event_name != 'user_engagement' and page_location is null)
       )    
@@ -172,11 +189,12 @@ FROM (
   )
   -- Eliminate consecutive instances of the same content groups
   WHERE content_group_lag != content_group OR content_group_lag IS NULL
-  GROUP BY user_pseudo_id
+  GROUP BY sessions_session_and_user_id
 )
 -- --optional journey content filtering for specific card pages in journey
 --WHERE REGEXP_CONTAINS(LOWER(journey), '>') --|^(apply now click)') 
---WHERE conversion_flg = TRUE
+WHERE conversion_flg = TRUE
+and journey !=''
 GROUP BY 1,2
 ORDER BY 3 DESC
 ;
