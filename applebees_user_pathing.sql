@@ -20,10 +20,12 @@
 
 --Query for 
 
+
 -- CTE: Use filter as inner join on fact table.
 WITH user_filter AS (
   SELECT
-    user_pseudo_id, platform,
+    concat(user_pseudo_id, '.', (SELECT e.value.int_value from UNNEST(event_params) as e where e.key = "ga_session_id")) as user_pseudo_id,
+     platform,
     -- Get the earliest converter timestamp to retain the converter and exclude cost conversion hits
     MIN((SELECT IF(REGEXP_CONTAINS(value.string_value, 'Order: Checkout'), event_timestamp, NULL) FROM UNNEST(event_params) WHERE event_name = 'purchase' and key ='page_title')) AS conversion_time
     --(select value.string_value from unnest(event_params) where event_name = 'page_view' and key = 'page_location') as page
@@ -38,17 +40,19 @@ WITH user_filter AS (
   HAVING conversion_time IS NOT NULL
 ),
 
+
 -- CTE: Pull events as a CTE to ensure proper date suffixes on inner join.
-event_facts as (
+e1 as (
 SELECT *
 FROM (  
   (SELECT
-    user_pseudo_id,
+    concat(user_pseudo_id, '.', (SELECT e.value.int_value from UNNEST(event_params) as e where e.key = "ga_session_id")) as user_pseudo_id,
     (SELECT MAX(value.string_value) FROM UNNEST(event_params) WHERE event_name = 'purchase' AND value.string_value = 'Order: Checkout') AS order_conversion,
     (SELECT value.string_value from UNNEST(event_params) WHERE event_name = 'page_view' AND key ='page_location') AS page_location,
     (SELECT value.string_value from UNNEST(event_params) WHERE event_name = 'add_to_cart' AND key ='page_location') AS page_location_when_added_to_cart,
     (SELECT value.string_value from UNNEST(event_params) WHERE event_name = 'user_engagement' AND key ='logged_in') AS logged_in_status,
     (SELECT value.string_value from UNNEST(event_params) WHERE event_name = 'Dynamic Click' AND key ='logged_in') AS dynamic_clicklogged_in_status,
+    
     event_name,
     event_timestamp,
     platform
@@ -56,9 +60,35 @@ FROM (
     WHERE 
              _TABLE_SUFFIX BETWEEN FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 8 DAY)) AND FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))
             ))
-  WHERE event_name in ('page_view','add_to_cart','purchase','user_engagement') OR order_conversion IS NOT NULL
+  WHERE event_name in ('page_view','add_to_cart','purchase','user_engagement','Dynamic Click','first_visit') OR order_conversion IS NOT NULL
   order by user_pseudo_id
+),
+
+first_visit_lookup as
+
+(
+  select
+  distinct
+  user_pseudo_id,
+  case when event_name = 'first_visit' then 1 else 0
+  end as first_visit
+  from
+  e1
+),
+
+event_facts as
+
+(
+  select e1.*, first_visit_lookup.first_visit
+  from
+  e1
+  left join
+  first_visit_lookup
+  on 
+  first_visit_lookup.user_pseudo_id = e1.user_pseudo_id
+
 )
+
 
 
 -- Final Query: Aggregrate complete user journey
@@ -79,33 +109,33 @@ FROM (
       SELECT
         *,
         CASE
-        WHEN REGEXP_CONTAINS(page_location, '/en/menu/appetizers') AND event_name  = 'page_view' THEN 'PV: Appetizers'
-        WHEN REGEXP_CONTAINS(page_location, '/en/menu/chicken|/en/menu/pasta|/en/menu/salads|/en/menu/from-the-grill|/en/menu/burgers|/en/menu/sandwiches-and-more|menu/seafood|irresist-a-bowls|steaks-and-ribs|fire-grilled-and-chef-selections|sandwiches|all-you-can-eat|handcrafted-burgers|tex-mex-lime-grilled-shrimp-bowl') AND     event_name = 'page_view' THEN 'PV: Entrees'
-          WHEN REGEXP_CONTAINS(page_location, r'/en/menu$') AND event_name = 'page_view' THEN 'PV: Menu'
-         -- WHEN REGEXP_CONTAINS(page_location, '/en/menu/ala-carte') AND event_name = 'page_view' THEN 'PV: Ala-Carte'
-          WHEN REGEXP_CONTAINS(page_location, '/en/order/cart') AND event_name = 'page_view' THEN 'PV: Cart'
-          WHEN REGEXP_CONTAINS(page_location, '/en/accounts/cart-sign-in?returnUrl=/en/order/check-out') AND event_name = 'page_view' THEN 'PV: Sign In'
-          WHEN REGEXP_CONTAINS(page_location, 'en/menu/2-for') AND event_name = 'page_view' THEN 'PV: Offers' 
-          WHEN REGEXP_CONTAINS(page_location, '/en/menu/non-alcoholic-beverages|menu/beer-and-wine') AND event_name = 'page_view' THEN 'PV: Drinks'
-          WHEN REGEXP_CONTAINS(page_location, '/en/menu/dessert') AND event_name = 'page_view' THEN 'PV: Dessert'
-          WHEN REGEXP_CONTAINS(page_location, 'en/menu/kids-menu') AND event_name = 'page_view' THEN 'PV: Kids Menu'
-          WHEN REGEXP_CONTAINS(page_location, 'en/order/check-out') AND event_name = 'page_view' THEN 'PV: Check Out'
-          WHEN REGEXP_CONTAINS(page_location, 'order/cross-sell-pre-checkout') AND event_name = 'page_view' THEN 'PV: Cross Sell Page'
+        WHEN REGEXP_CONTAINS(page_location, '/en/menu/appetizers') AND event_name  = 'page_view' THEN 'Appetizers'
+        WHEN REGEXP_CONTAINS(page_location, '/en/menu/chicken|/en/menu/pasta|/en/menu/salads|/en/menu/from-the-grill|/en/menu/burgers|/en/menu/sandwiches-and-more|menu/seafood|irresist-a-bowls|steaks-and-ribs|fire-grilled-and-chef-selections|sandwiches|all-you-can-eat|handcrafted-burgers|tex-mex-lime-grilled-shrimp-bowl') AND     event_name = 'page_view' THEN 'Entrees'
+          WHEN REGEXP_CONTAINS(page_location, r'/en/menu$') AND event_name = 'page_view' THEN 'Menu'
+         -- WHEN REGEXP_CONTAINS(page_location, '/en/menu/ala-carte') AND event_name = 'page_view' THEN 'Ala-Carte'
+          WHEN REGEXP_CONTAINS(page_location, '/en/order/cart') AND event_name = 'page_view' THEN 'Cart'
+          WHEN REGEXP_CONTAINS(page_location, '/en/accounts/cart-sign-in.*') AND event_name = 'page_view' THEN 'Cart Sign In'
+         -- WHEN REGEXP_CONTAINS(page_location, 'en/menu/2-for') AND event_name = 'page_view' THEN 'PV: Offers' 
+          WHEN REGEXP_CONTAINS(page_location, '/en/menu/non-alcoholic-beverages|menu/beer-and-wine') AND event_name = 'page_view' THEN 'Drinks'
+          WHEN REGEXP_CONTAINS(page_location, '/en/menu/dessert') AND event_name = 'page_view' THEN 'Dessert'
+          WHEN REGEXP_CONTAINS(page_location, 'en/menu/kids-menu') AND event_name = 'page_view' THEN 'Kids Menu'
+          WHEN REGEXP_CONTAINS(page_location, 'en/order/check-out') AND event_name = 'page_view' THEN 'Check Out'
+          WHEN REGEXP_CONTAINS(page_location, 'order/cross-sell-pre-checkout') AND event_name = 'page_view' THEN 'Cross Sell Page'
          -- WHEN REGEXP_CONTAINS(page_location, 'en/menu/catering') AND event_name = 'page_view' THEN 'PV: Catering'
-          WHEN REGEXP_CONTAINS(page_location, 'menu/family-value-bundles') AND event_name = 'page_view' THEN 'PV: Viewed Family Value Bundles'
-          WHEN REGEXP_CONTAINS(page_location, 'en/order/confirm-restaurant') AND event_name = 'page_view' THEN 'PV: Confirm Restaurant'
-          WHEN REGEXP_CONTAINS(page_location, 'en/menu/extras') AND event_name = 'page_view' THEN 'PV: Menu Extras'
-          WHEN REGEXP_CONTAINS(page_location, 'accounts/sign-in') AND event_name = 'page_view' THEN 'PV: Account Sign In'
-          WHEN REGEXP_CONTAINS(page_location, 'en/order/ordermethod') AND event_name = 'page_view' THEN 'PV: Order Method'
-          WHEN REGEXP_CONTAINS(page_location, 'nutrition') AND event_name = 'page_view' THEN 'PV: Nutrition'
+          WHEN REGEXP_CONTAINS(page_location, 'menu/family-value-bundles') AND event_name = 'page_view' THEN 'Viewed Family Value Bundles'
+          WHEN REGEXP_CONTAINS(page_location, 'en/order/confirm-restaurant') AND event_name = 'page_view' THEN 'Confirm Restaurant'
+          WHEN REGEXP_CONTAINS(page_location, 'en/menu/extras') AND event_name = 'page_view' THEN 'Menu Extras'
+          WHEN REGEXP_CONTAINS(page_location, 'accounts/sign-in') AND event_name = 'page_view' THEN 'Account Sign In'
+          WHEN REGEXP_CONTAINS(page_location, 'en/order/ordermethod') AND event_name = 'page_view' THEN 'Order Method'
+          WHEN REGEXP_CONTAINS(page_location, 'nutrition') AND event_name = 'page_view' THEN 'Nutrition'
           --WHEN REGEXP_CONTAINS(page_location, 'terms-of-use') AND event_name = 'page_view' THEN 'PV: Terms of Use'
        --WHEN REGEXP_CONTAINS(page_location, 'order/confirmation?') AND event_name = 'page_view' THEN 'PV: Order Confirmation'
-          WHEN REGEXP_CONTAINS(page_location, 'accounts/my-account') AND event_name = 'page_view' THEN 'PV: My Account'
+          WHEN REGEXP_CONTAINS(page_location, 'accounts/my-account') AND event_name = 'page_view' THEN 'My Account'
        --   WHEN REGEXP_CONTAINS(page_location, 'contact-us') AND event_name = 'page_view' THEN 'PV: Contact Us'
-          WHEN REGEXP_CONTAINS(page_location, 'gift-cards') AND event_name = 'page_view' THEN 'PV: Gift Cards'
-          WHEN REGEXP_CONTAINS(page_location, '/en/sign-up') AND event_name = 'page_view' THEN 'PV: Sign Up'
-          WHEN page_location = 'https://www.applebees.com/en' or page_location = 'https://restaurants.applebees.com/en-us/' AND event_name = 'page_view' THEN 'PV: Home Page'
-          WHEN REGEXP_CONTAINS(page_location, '/en/order/cross-sell-pre-checkout') AND event_name = 'page_view' THEN 'PV: Cross-Sell'
+          WHEN REGEXP_CONTAINS(page_location, 'gift-cards') AND event_name = 'page_view' THEN 'Gift Cards'
+          WHEN REGEXP_CONTAINS(page_location, '/en/sign-up') AND event_name = 'page_view' THEN 'Sign Up'
+          WHEN page_location = 'https://www.applebees.com/en' or page_location = 'https://restaurants.applebees.com/en-us/' AND event_name = 'page_view' THEN 'Home Page'
+          WHEN REGEXP_CONTAINS(page_location, '/en/order/cross-sell-pre-checkout') AND event_name = 'page_view' THEN 'Cross-Sell'
           --WHEN event_name = 'add_to_cart' then 'A2C'
          --Add to cart
          /*
@@ -116,8 +146,9 @@ FROM (
           WHEN REGEXP_CONTAINS(page_location_when_added_to_cart, 'en/menu/2-for') AND event_name = 'add_to_cart' THEN 'A2C: 2-For ...'
           WHEN REGEXP_CONTAINS(page_location_when_added_to_cart, '/en/menu/dessert') AND event_name = 'add_to_cart' THEN 'A2C: Dessert'
           WHEN REGEXP_CONTAINS(page_location_when_added_to_cart, '/en/order/cross-sell-pre-checkout') AND event_name = 'add_to_cart' THEN 'A2C: Cross-Sell'
-          WHEN REGEXP_CONTAINS(logged_in_status,'Logged in')  THEN 'logged_in'
           */
+          --WHEN REGEXP_CONTAINS(logged_in_status,'Logged in')  THEN 'logged_in'
+          
           WHEN event_name = 'purchase' then 'Purchase'
           else NULL
           END AS content_group,
@@ -126,7 +157,7 @@ FROM (
         -- Join both base tables
         SELECT
           *
-        FROM event_facts
+        FROM event_facts 
         LEFT JOIN (
           SELECT
             user_pseudo_id,
@@ -136,6 +167,9 @@ FROM (
         USING(user_pseudo_id)
         -- Get all remaining non-converters and all hits from converters leading up to conversion
         WHERE conversion_time IS NULL OR conversion_time >= event_timestamp --and (event_name != 'user_engagement' and page_location is null)
+        
+        --Filter for first visit
+        and first_visit = 0
       )    
     )
     -- Limit to only pageviews where you have a valid content group to reduce noise
@@ -147,7 +181,9 @@ FROM (
 )
 -- --optional journey content filtering for specific card pages in journey
 --WHERE REGEXP_CONTAINS(LOWER(journey), '>') --|^(apply now click)') 
-WHERE conversion_flg = TRUE
+
+--Filter for conversion_flg
+WHERE conversion_flg = FALSE
 GROUP BY 1,2
 ORDER BY 2 DESC,3 DESC;
 
@@ -256,4 +292,5 @@ all_records as
         group by content_group, page_location, event_name
         order by p_count desc
         ;
+
 
